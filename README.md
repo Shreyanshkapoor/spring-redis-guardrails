@@ -70,7 +70,7 @@ Starts `grid07-postgres` on **5432** and `grid07-redis` on **6379**.
 ./mvnw spring-boot:run
 ```
 
-App starts on **http://localhost:8080**.
+App starts on **http://localhost:8081**.
 Hibernate auto-creates all tables on first boot (`ddl-auto=update`).
 
 ### 3. Seed test data
@@ -82,7 +82,7 @@ curl -X POST http://localhost:8081/api/users \
   -d '{"username":"shreyansh","isPremium":true}'
 
 # Create a bot
-curl -X POST http://localhost:8080/api/bots \
+curl -X POST http://localhost:8081/api/bots \
   -H "Content-Type: application/json" \
   -d '{"name":"AlphaBot","personaDescription":"Helpful bot"}'
 ```
