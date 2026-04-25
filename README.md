@@ -1,5 +1,5 @@
 # Grid07 — Backend Engineering Assignment
-### Core API & Guardrails — Spring Boot 3.x + PostgreSQL + Redis
+### Core API & Guardrails — Spring Boot + PostgreSQL + Redis
 
 ---
 
