@@ -24,7 +24,6 @@ buildNumber.properties
 *.ipr
 out/
 
-
 .vscode/
 
 
@@ -32,10 +31,13 @@ out/
 Thumbs.db
 desktop.ini
 
+
 .env
 .env.local
+application.properties
 application-local.properties
 application-secret.properties
+
 
 *.log
 logs/
