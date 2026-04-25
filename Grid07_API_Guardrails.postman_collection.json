@@ -1,0 +1,262 @@
+{
+  "info": {
+    "name": "Grid07 API Guardrails",
+    "_postman_id": "grid07-api-guardrails-v1",
+    "description": "Spring Boot microservice with Redis guardrails — Grid07 Backend Assignment",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "postId",  "value": "1",                    "type": "string" },
+    { "key": "userId",  "value": "1",                    "type": "string" },
+    { "key": "botId",   "value": "1",                    "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "0. Seed Data",
+      "item": [
+        {
+          "name": "Create User (Human)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api","users"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"alice\",\n  \"isPremium\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Bot",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/bots", "host": ["{{baseUrl}}"], "path": ["api","bots"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"AlphaBot\",\n  \"personaDescription\": \"A friendly AI assistant bot.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api","users"] }
+          }
+        },
+        {
+          "name": "Get All Bots",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/bots", "host": ["{{baseUrl}}"], "path": ["api","bots"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "1. Phase 1 — Core REST",
+      "item": [
+        {
+          "name": "Create Post (by Human)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/posts", "host": ["{{baseUrl}}"], "path": ["api","posts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{userId}},\n  \"authorType\": \"USER\",\n  \"content\": \"Hello world! This is my first post.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Post (by Bot)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/posts", "host": ["{{baseUrl}}"], "path": ["api","posts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{botId}},\n  \"authorType\": \"BOT\",\n  \"content\": \"Bot-generated post content.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Comment — Human (depth 0)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/comments",
+              "host": ["{{baseUrl}}"], "path": ["api","posts","{{postId}}","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{userId}},\n  \"authorType\": \"USER\",\n  \"content\": \"Nice post!\",\n  \"depthLevel\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Comment — Bot (depth 0, triggers guardrails)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/comments",
+              "host": ["{{baseUrl}}"], "path": ["api","posts","{{postId}}","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{botId}},\n  \"authorType\": \"BOT\",\n  \"content\": \"I am a bot and I just replied!\",\n  \"depthLevel\": 0,\n  \"targetUserId\": {{userId}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Like Post",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/like",
+              "host": ["{{baseUrl}}"], "path": ["api","posts","{{postId}}","like"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userId}}\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "2. Phase 2 — Guardrail Tests",
+      "item": [
+        {
+          "name": "Test: Vertical Cap (depth 21 — should 429)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/comments",
+              "host": ["{{baseUrl}}"], "path": ["api","posts","{{postId}}","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{botId}},\n  \"authorType\": \"BOT\",\n  \"content\": \"Too deep reply\",\n  \"depthLevel\": 21,\n  \"targetUserId\": {{userId}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Test: Cooldown Cap (2nd bot reply within 10 min — should 429)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/comments",
+              "host": ["{{baseUrl}}"], "path": ["api","posts","{{postId}}","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{botId}},\n  \"authorType\": \"BOT\",\n  \"content\": \"Trying to reply again within cooldown\",\n  \"depthLevel\": 0,\n  \"targetUserId\": {{userId}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Read Virality Score",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/virality",
+              "host": ["{{baseUrl}}"], "path": ["api","posts","{{postId}}","virality"]
+            }
+          }
+        },
+        {
+          "name": "Read Bot Reply Count",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/bot-count",
+              "host": ["{{baseUrl}}"], "path": ["api","posts","{{postId}}","bot-count"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "3. Phase 4 — Race Condition (Spam Test)",
+      "item": [
+        {
+          "name": "Bot Spam Comment (run × 200 with Runner)",
+          "_postman_description": "Use Postman Collection Runner with 200 iterations and 0 delay to simulate 200 concurrent bot replies. The horizontal cap must stop at exactly 100.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/comments",
+              "host": ["{{baseUrl}}"], "path": ["api","posts","{{postId}}","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{botId}},\n  \"authorType\": \"BOT\",\n  \"content\": \"Spam bot reply\",\n  \"depthLevel\": 0,\n  \"targetUserId\": {{userId}}\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "4. Edge Cases",
+      "item": [
+        {
+          "name": "Post Not Found (should 404)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/99999/comments",
+              "host": ["{{baseUrl}}"], "path": ["api","posts","99999","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{userId}},\n  \"authorType\": \"USER\",\n  \"content\": \"Reply to ghost post\",\n  \"depthLevel\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "Duplicate Like (should 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/like",
+              "host": ["{{baseUrl}}"], "path": ["api","posts","{{postId}}","like"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userId}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Validation Error — missing content (should 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/posts", "host": ["{{baseUrl}}"], "path": ["api","posts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{userId}},\n  \"authorType\": \"USER\"\n}"
+            }
+          }
+        }
+      ]
+    }
+
+  ]
+}

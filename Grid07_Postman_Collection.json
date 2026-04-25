@@ -1,0 +1,318 @@
+{
+  "info": {
+    "name": "Grid07 API Guardrails",
+    "description": "Complete Postman collection for the Grid07 Spring Boot assignment. Run requests in order: Seed → Posts → Comments → Likes → Inspect Redis state.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080", "type": "string" },
+    { "key": "post_id",  "value": "1",                    "type": "string" },
+    { "key": "user_id",  "value": "1",                    "type": "string" },
+    { "key": "bot_id",   "value": "1",                    "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0. Seed Data",
+      "item": [
+        {
+          "name": "Create User (Human)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/users", "host": ["{{base_url}}"], "path": ["api","users"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"shreyansh\",\n  \"isPremium\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('user_id', json.id);",
+                  "pm.test('User created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Bot",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/bots", "host": ["{{base_url}}"], "path": ["api","bots"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"AlphaBot\",\n  \"personaDescription\": \"A helpful AI that replies to posts.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('bot_id', json.id);",
+                  "pm.test('Bot created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/users", "host": ["{{base_url}}"], "path": ["api","users"] }
+          }
+        },
+        {
+          "name": "List Bots",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/bots", "host": ["{{base_url}}"], "path": ["api","bots"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Phase 1 — Core API",
+      "item": [
+        {
+          "name": "Create Post (by User)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/posts", "host": ["{{base_url}}"], "path": ["api","posts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{user_id}},\n  \"authorType\": \"USER\",\n  \"content\": \"This is my first post!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('post_id', json.id);",
+                  "pm.test('Post created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Post (by Bot)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/posts", "host": ["{{base_url}}"], "path": ["api","posts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{bot_id}},\n  \"authorType\": \"BOT\",\n  \"content\": \"I am a bot and I just posted.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Comment (by User) — Human Comment +50 virality",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/comments",
+              "host": ["{{base_url}}"], "path": ["api","posts","{{post_id}}","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{user_id}},\n  \"authorType\": \"USER\",\n  \"content\": \"Great post! Really enjoyed it.\",\n  \"depthLevel\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Comment (by Bot) — Bot Reply +1 virality",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/comments",
+              "host": ["{{base_url}}"], "path": ["api","posts","{{post_id}}","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{bot_id}},\n  \"authorType\": \"BOT\",\n  \"content\": \"Hello human! I am AlphaBot.\",\n  \"depthLevel\": 1,\n  \"targetUserId\": {{user_id}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Like Post (by User) — Human Like +20 virality",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/like",
+              "host": ["{{base_url}}"], "path": ["api","posts","{{post_id}}","like"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{user_id}}\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Phase 2 — Guardrail Tests",
+      "item": [
+        {
+          "name": "Check Virality Score",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/virality",
+              "host": ["{{base_url}}"], "path": ["api","posts","{{post_id}}","virality"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Virality score returned', () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "console.log('Virality score:', json.viralityScore);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check Bot Count",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/bot-count",
+              "host": ["{{base_url}}"], "path": ["api","posts","{{post_id}}","bot-count"]
+            }
+          }
+        },
+        {
+          "name": "[GUARDRAIL] Cooldown — Bot replies to same user again (expect 429)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/comments",
+              "host": ["{{base_url}}"], "path": ["api","posts","{{post_id}}","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{bot_id}},\n  \"authorType\": \"BOT\",\n  \"content\": \"Trying to spam the same user within 10 minutes.\",\n  \"depthLevel\": 1,\n  \"targetUserId\": {{user_id}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Cooldown cap returns 429', () => pm.response.to.have.status(429));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[GUARDRAIL] Vertical Cap — depth 21 (expect 429)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/comments",
+              "host": ["{{base_url}}"], "path": ["api","posts","{{post_id}}","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{bot_id}},\n  \"authorType\": \"BOT\",\n  \"content\": \"Too deep!\",\n  \"depthLevel\": 21,\n  \"targetUserId\": {{user_id}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Vertical cap returns 429', () => pm.response.to.have.status(429));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[GUARDRAIL] Duplicate Like (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/like",
+              "host": ["{{base_url}}"], "path": ["api","posts","{{post_id}}","like"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{user_id}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Duplicate like returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[GUARDRAIL] Post Not Found (expect 404)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/posts/99999/comments",
+              "host": ["{{base_url}}"], "path": ["api","posts","99999","comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{user_id}},\n  \"authorType\": \"USER\",\n  \"content\": \"Ghost post.\",\n  \"depthLevel\": 0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Not found returns 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Horizontal Cap Stress Test (manual loop)",
+      "item": [
+        {
+          "name": "[README] How to run the 200-bot stress test",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/posts/{{post_id}}/bot-count", "host": ["{{base_url}}"], "path": ["api","posts","{{post_id}}","bot-count"] },
+            "description": "Use Postman Runner or the provided stress-test script:\n\n  node stress-test.js\n\nFires 200 concurrent POST /api/posts/{id}/comments with BOT author.\nExpected result: exactly 100 comments in the DB; remaining 100 get 429."
+          }
+        }
+      ]
+    }
+  ]
+}
